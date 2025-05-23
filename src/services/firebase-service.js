@@ -33,227 +33,128 @@ export const fetchUserProfile = async (userId) => {
     const userSnap = await getDoc(userRef)
 
     if (userSnap.exists()) {
+      console.log("User found in Firestore:", userSnap.data())
       return { success: true, data: userSnap.data() }
     } else {
       // If not found in Firestore, return mock data
       console.log("User not found in Firestore, using mock data")
-      // Randomly choose between brand and creator for demo purposes
-      const userType = Math.random() > 0.5 ? "brand" : "creator"
-      return { success: true, data: mockUserProfiles[userType] }
+      // Default to brand user type
+      return { success: true, data: mockUserProfiles["brand"] }
     }
   } catch (error) {
     console.error("Error fetching user profile:", error)
     // Return mock data on error
     console.log("Error fetching from Firestore, using mock data")
-    const userType = Math.random() > 0.5 ? "brand" : "creator"
-    return { success: true, data: mockUserProfiles[userType] }
+    return { success: true, data: mockUserProfiles["brand"] }
   }
 }
 
-// Fetch active missions for a brand
-export const fetchBrandMissions = async (brandId) => {
-  try {
-    // First try to get from Firestore
-    const missionsRef = collection(db, "missions")
-    const q = query(missionsRef, where("brandId", "==", brandId), orderBy("createdAt", "desc"))
-
-    const querySnapshot = await getDocs(q)
-    const missions = []
-
-    querySnapshot.forEach((doc) => {
-      missions.push({
-        id: doc.id,
-        ...doc.data(),
-      })
-    })
-
-    if (missions.length > 0) {
-      return { success: true, data: missions }
-    } else {
-      // If no missions found in Firestore, return mock data
-      console.log("No missions found in Firestore, using mock data")
-      return { success: true, data: mockMissions }
-    }
-  } catch (error) {
-    console.error("Error fetching brand missions:", error)
-    // Return mock data on error
-    console.log("Error fetching from Firestore, using mock data")
-    return { success: true, data: mockMissions }
-  }
-}
-
-// Fetch creators for a brand to consider
-export const fetchRecommendedCreators = async (brandId, category) => {
-  try {
-    // First try to get from Firestore
-    const creatorsRef = collection(db, "users")
-    const q = query(
-      creatorsRef,
-      where("userType", "==", "creator"),
-      where("categories", "array-contains", category),
-      limit(5),
-    )
-
-    const querySnapshot = await getDocs(q)
-    const creators = []
-
-    querySnapshot.forEach((doc) => {
-      creators.push({
-        id: doc.id,
-        ...doc.data(),
-      })
-    })
-
-    if (creators.length > 0) {
-      return { success: true, data: creators }
-    } else {
-      // If no creators found in Firestore, return mock data
-      console.log("No creators found in Firestore, using mock data")
-      return { success: true, data: mockCreators }
-    }
-  } catch (error) {
-    console.error("Error fetching recommended creators:", error)
-    // Return mock data on error
-    console.log("Error fetching from Firestore, using mock data")
-    return { success: true, data: mockCreators }
-  }
-}
-
-// Fetch missions for a creator
-export const fetchCreatorMissions = async (creatorId) => {
-  try {
-    // First try to get from Firestore
-    const missionsRef = collection(db, "missions")
-    const q = query(missionsRef, where("assignedCreators", "array-contains", creatorId), orderBy("deadline", "asc"))
-
-    const querySnapshot = await getDocs(q)
-    const missions = []
-
-    querySnapshot.forEach((doc) => {
-      missions.push({
-        id: doc.id,
-        ...doc.data(),
-      })
-    })
-
-    if (missions.length > 0) {
-      return { success: true, data: missions }
-    } else {
-      // If no missions found in Firestore, return mock data
-      console.log("No missions found in Firestore, using mock data")
-      return { success: true, data: mockMissions }
-    }
-  } catch (error) {
-    console.error("Error fetching creator missions:", error)
-    // Return mock data on error
-    console.log("Error fetching from Firestore, using mock data")
-    return { success: true, data: mockMissions }
-  }
-}
-
-// Fetch real-time notifications
-export const subscribeToNotifications = (userId, callback) => {
-  try {
-    // First try to subscribe to Realtime Database
-    const notificationsRef = ref(rtdb, `notifications/${userId}`)
-
-    const unsubscribe = onValue(
-      notificationsRef,
-      (snapshot) => {
-        const notifications = []
-
-        if (snapshot.exists()) {
-          snapshot.forEach((childSnapshot) => {
-            notifications.push({
-              id: childSnapshot.key,
-              ...childSnapshot.val(),
-            })
-          })
-          callback(notifications)
-        } else {
-          // If no notifications found in RTDB, use mock data
-          console.log("No notifications found in RTDB, using mock data")
-          callback(mockNotifications)
-        }
-      },
-      (error) => {
-        console.error("Error subscribing to notifications:", error)
-        // Return mock data on error
-        console.log("Error subscribing to RTDB, using mock data")
-        callback(mockNotifications)
-      },
-    )
-
-    return unsubscribe
-  } catch (error) {
-    console.error("Error setting up notification subscription:", error)
-    // Return a dummy unsubscribe function
-    return () => {}
-  }
-}
-
-// Fetch dashboard stats
-export const fetchDashboardStats = async (userId, userType) => {
-  try {
-    // First try to get from Firestore
-    const statsRef = doc(db, `${userType}Stats`, userId)
-    const statsSnap = await getDoc(statsRef)
-
-    if (statsSnap.exists()) {
-      return { success: true, data: statsSnap.data() }
-    } else {
-      // If no stats found in Firestore, return mock data
-      console.log("No stats found in Firestore, using mock data")
-      return { success: true, data: mockDashboardStats[userType] }
-    }
-  } catch (error) {
-    console.error("Error fetching dashboard stats:", error)
-    // Return mock data on error
-    console.log("Error fetching from Firestore, using mock data")
-    return { success: true, data: mockDashboardStats[userType] }
-  }
-}
-
-// Fetch recent activities
-export const fetchRecentActivities = async (userId) => {
-  try {
-    // First try to get from Firestore
-    const activitiesRef = collection(db, "activities")
-    const q = query(activitiesRef, where("userId", "==", userId), orderBy("timestamp", "desc"), limit(10))
-
-    const querySnapshot = await getDocs(q)
-    const activities = []
-
-    querySnapshot.forEach((doc) => {
-      activities.push({
-        id: doc.id,
-        ...doc.data(),
-      })
-    })
-
-    if (activities.length > 0) {
-      return { success: true, data: activities }
-    } else {
-      // If no activities found in Firestore, return mock data
-      console.log("No activities found in Firestore, using mock data")
-      return { success: true, data: mockActivities }
-    }
-  } catch (error) {
-    console.error("Error fetching recent activities:", error)
-    // Return mock data on error
-    console.log("Error fetching from Firestore, using mock data")
-    return { success: true, data: mockActivities }
-  }
-}
-
-// Add missing functions that are referenced in auth.js
+// Save user data to Firestore
 export const saveUserData = async (userId, userData) => {
   try {
+    // Ensure userType is set to brand
+    const dataToSave = {
+      ...userData,
+      userType: "brand", // Force brand role
+      updatedAt: serverTimestamp(),
+    }
+
+    console.log("Saving user data to Firestore:", userId, dataToSave)
+
+    // Save to users collection
     const userRef = doc(db, "users", userId)
-    await setDoc(userRef, userData, { merge: true })
+    await setDoc(userRef, dataToSave, { merge: true })
+
+    // Also save to brands collection for brand-specific data
+    if (dataToSave.userType === "brand") {
+      const brandRef = doc(db, "brands", userId)
+      await setDoc(
+        brandRef,
+        {
+          userId: userId,
+          companyName: dataToSave.companyName || dataToSave.displayName || "New Brand",
+          industry: dataToSave.industry || "other",
+          websiteUrl: dataToSave.websiteUrl || "",
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      )
+    }
+
+    // Log activity
+    await addDoc(collection(db, "activities"), {
+      userId: userId,
+      action: "profile_update",
+      timestamp: serverTimestamp(),
+      details: "User profile updated",
+    })
+
     return { success: true }
   } catch (error) {
     console.error("Error saving user data:", error)
+    return { error }
+  }
+}
+
+// Create a new user in Firestore
+export const createNewUser = async (user, additionalData = {}) => {
+  try {
+    // Split name into first and last name (best effort)
+    const nameParts = user.displayName ? user.displayName.trim().split(" ") : ["", ""]
+    const firstName = nameParts[0] || ""
+    const lastName = nameParts.slice(1).join(" ") || ""
+
+    // Prepare user data with brand as default user type
+    const userData = {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName || user.email.split("@")[0],
+      firstName,
+      lastName,
+      phoneNumber: user.phoneNumber || "",
+      photoURL: user.photoURL || "",
+      location: "",
+      bio: "",
+      userType: "brand", // Default user type is brand
+      verificationStatus: true, // Set to true by default for easier testing
+      settings: {
+        emailNotifications: true,
+        profileVisibility: true,
+      },
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      ...additionalData,
+    }
+
+    console.log("Creating new user in Firestore:", user.uid, userData)
+
+    // Save to users collection
+    const userRef = doc(db, "users", user.uid)
+    await setDoc(userRef, userData)
+
+    // Also save to brands collection
+    const brandRef = doc(db, "brands", user.uid)
+    await setDoc(brandRef, {
+      userId: user.uid,
+      companyName: additionalData.companyName || user.displayName || "New Brand",
+      industry: additionalData.industry || "other",
+      websiteUrl: additionalData.websiteUrl || "",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+
+    // Add initial activity log
+    await addDoc(collection(db, "activities"), {
+      userId: user.uid,
+      action: "account_created",
+      timestamp: serverTimestamp(),
+      details: "Account created with brand user type",
+    })
+
+    return { success: true, data: userData }
+  } catch (error) {
+    console.error("Error creating new user:", error)
     return { error }
   }
 }
@@ -264,8 +165,10 @@ export const getUserData = async (userId) => {
     const userSnap = await getDoc(userRef)
 
     if (userSnap.exists()) {
+      console.log("User data retrieved from Firestore:", userSnap.data())
       return { success: true, data: userSnap.data() }
     } else {
+      console.log("User not found in Firestore:", userId)
       return { success: false }
     }
   } catch (error) {
@@ -345,6 +248,202 @@ export const verifyCode = async (email, code) => {
   } catch (error) {
     console.error("Error verifying code:", error)
     return { error, success: false, valid: false }
+  }
+}
+
+// Fetch recent activities
+export const fetchRecentActivities = async (userId) => {
+  try {
+    // First try to get from Firestore
+    const activitiesRef = collection(db, "activities")
+    const q = query(activitiesRef, where("userId", "==", userId), orderBy("timestamp", "desc"), limit(10))
+
+    const querySnapshot = await getDocs(q)
+    const activities = []
+
+    querySnapshot.forEach((doc) => {
+      activities.push({
+        id: doc.id,
+        ...doc.data(),
+      })
+    })
+
+    if (activities.length > 0) {
+      return { success: true, data: activities }
+    } else {
+      // If no activities found in Firestore, return mock data
+      console.log("No activities found in Firestore, using mock data")
+      return { success: true, data: mockActivities }
+    }
+  } catch (error) {
+    console.error("Error fetching recent activities:", error)
+    // Return mock data on error
+    console.log("Error fetching from Firestore, using mock data")
+    return { success: true, data: mockActivities }
+  }
+}
+
+// Fetch real-time notifications
+export const subscribeToNotifications = (userId, callback) => {
+  try {
+    // First try to subscribe to Realtime Database
+    const notificationsRef = ref(rtdb, `notifications/${userId}`)
+
+    const unsubscribe = onValue(
+      notificationsRef,
+      (snapshot) => {
+        const notifications = []
+
+        if (snapshot.exists()) {
+          snapshot.forEach((childSnapshot) => {
+            notifications.push({
+              id: childSnapshot.key,
+              ...childSnapshot.val(),
+            })
+          })
+          callback(notifications)
+        } else {
+          // If no notifications found in RTDB, use mock data
+          console.log("No notifications found in RTDB, using mock data")
+          callback(mockNotifications)
+        }
+      },
+      (error) => {
+        console.error("Error subscribing to notifications:", error)
+        // Return mock data on error
+        console.log("Error subscribing to RTDB, using mock data")
+        callback(mockNotifications)
+      },
+    )
+
+    return unsubscribe
+  } catch (error) {
+    console.error("Error setting up notification subscription:", error)
+    // Return a dummy unsubscribe function
+    return () => {}
+  }
+}
+
+// Fetch brand missions
+export const fetchBrandMissions = async (brandId) => {
+  try {
+    // First try to get from Firestore
+    const missionsRef = collection(db, "missions")
+    const q = query(missionsRef, where("brandId", "==", brandId), orderBy("createdAt", "desc"))
+
+    const querySnapshot = await getDocs(q)
+    const missions = []
+
+    querySnapshot.forEach((doc) => {
+      missions.push({
+        id: doc.id,
+        ...doc.data(),
+      })
+    })
+
+    if (missions.length > 0) {
+      return { success: true, data: missions }
+    } else {
+      // If no missions found in Firestore, return mock data
+      console.log("No missions found in Firestore, using mock data")
+      return { success: true, data: mockMissions }
+    }
+  } catch (error) {
+    console.error("Error fetching brand missions:", error)
+    // Return mock data on error
+    console.log("Error fetching from Firestore, using mock data")
+    return { success: true, data: mockMissions }
+  }
+}
+
+// Fetch creators for a brand to consider
+export const fetchRecommendedCreators = async (brandId, category) => {
+  try {
+    // First try to get from Firestore
+    const creatorsRef = collection(db, "users")
+    const q = query(
+      creatorsRef,
+      where("userType", "==", "creator"),
+      where("categories", "array-contains", category),
+      limit(5),
+    )
+
+    const querySnapshot = await getDocs(q)
+    const creators = []
+
+    querySnapshot.forEach((doc) => {
+      creators.push({
+        id: doc.id,
+        ...doc.data(),
+      })
+    })
+
+    if (creators.length > 0) {
+      return { success: true, data: creators }
+    } else {
+      // If no creators found in Firestore, return mock data
+      console.log("No creators found in Firestore, using mock data")
+      return { success: true, data: mockCreators }
+    }
+  } catch (error) {
+    console.error("Error fetching recommended creators:", error)
+    // Return mock data on error
+    console.log("Error fetching from Firestore, using mock data")
+    return { success: true, data: mockCreators }
+  }
+}
+
+// Fetch dashboard stats
+export const fetchDashboardStats = async (userId, userType) => {
+  try {
+    // First try to get from Firestore
+    const statsRef = doc(db, `${userType}Stats`, userId)
+    const statsSnap = await getDoc(statsRef)
+
+    if (statsSnap.exists()) {
+      return { success: true, data: statsSnap.data() }
+    } else {
+      // If no stats found in Firestore, return mock data
+      console.log("No stats found in Firestore, using mock data")
+      return { success: true, data: mockDashboardStats[userType] }
+    }
+  } catch (error) {
+    console.error("Error fetching dashboard stats:", error)
+    // Return mock data on error
+    console.log("Error fetching from Firestore, using mock data")
+    return { success: true, data: mockDashboardStats[userType] }
+  }
+}
+
+// Fetch missions for a creator
+export const fetchCreatorMissions = async (creatorId) => {
+  try {
+    // First try to get from Firestore
+    const missionsRef = collection(db, "missions")
+    const q = query(missionsRef, where("assignedCreators", "array-contains", creatorId), orderBy("deadline", "asc"))
+
+    const querySnapshot = await getDocs(q)
+    const missions = []
+
+    querySnapshot.forEach((doc) => {
+      missions.push({
+        id: doc.id,
+        ...doc.data(),
+      })
+    })
+
+    if (missions.length > 0) {
+      return { success: true, data: missions }
+    } else {
+      // If no missions found in Firestore, return mock data
+      console.log("No missions found in Firestore, using mock data")
+      return { success: true, data: mockMissions }
+    }
+  } catch (error) {
+    console.error("Error fetching creator missions:", error)
+    // Return mock data on error
+    console.log("Error fetching from Firestore, using mock data")
+    return { success: true, data: mockMissions }
   }
 }
 

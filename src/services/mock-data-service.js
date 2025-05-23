@@ -1,19 +1,86 @@
 // Mock data for user profiles
 export const mockUserProfiles = {
   brand: {
-    id: "brand1",
-    name: "Acme Corp",
+    uid: "brand1",
+    displayName: "Acme Corp",
+    firstName: "Acme",
+    lastName: "Corp",
     email: "info@acmecorp.com",
     userType: "brand",
     profileComplete: true,
+    companyName: "Acme Corporation",
+    industry: "technology",
+    websiteUrl: "https://acmecorp.com",
+    bio: "Leading technology solutions provider",
+    location: "San Francisco, CA",
+    phoneNumber: "+1 (555) 123-4567",
+    photoURL: "https://ui-avatars.com/api/?name=Acme+Corp&background=0D8ABC&color=fff",
+    verificationStatus: true,
+    createdAt: { seconds: (Date.now() - 90 * 24 * 60 * 60 * 1000) / 1000 },
+    updatedAt: { seconds: (Date.now() - 5 * 24 * 60 * 60 * 1000) / 1000 },
+    settings: {
+      emailNotifications: true,
+      pushNotifications: true,
+      smsNotifications: false,
+      profileVisibility: true,
+    },
+    security: {
+      twoFactorEnabled: false,
+      connectedDevices: [
+        {
+          id: "device1",
+          name: "Chrome on Windows",
+          type: "desktop",
+          lastActive: new Date().toISOString(),
+          isCurrent: true,
+        },
+        {
+          id: "device2",
+          name: "iPhone 13",
+          type: "mobile",
+          lastActive: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          isCurrent: false,
+        },
+      ],
+      loginHistory: [
+        {
+          id: "login1",
+          device: "Chrome on Windows",
+          location: "San Francisco, CA",
+          time: new Date().toISOString(),
+          status: "success",
+        },
+        {
+          id: "login2",
+          device: "iPhone 13",
+          location: "San Francisco, CA",
+          time: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          status: "success",
+        },
+      ],
+    },
   },
   creator: {
-    id: "creator1",
+    uid: "creator1",
+    displayName: "Jane Doe",
     firstName: "Jane",
     lastName: "Doe",
     email: "jane.doe@example.com",
     userType: "creator",
     profileComplete: true,
+    bio: "Content creator specializing in lifestyle and fashion",
+    location: "New York, NY",
+    phoneNumber: "+1 (555) 987-6543",
+    photoURL: "https://ui-avatars.com/api/?name=Jane+Doe&background=FF5733&color=fff",
+    verificationStatus: true,
+    createdAt: { seconds: (Date.now() - 60 * 24 * 60 * 60 * 1000) / 1000 },
+    updatedAt: { seconds: (Date.now() - 3 * 24 * 60 * 60 * 1000) / 1000 },
+    settings: {
+      emailNotifications: true,
+      pushNotifications: true,
+      smsNotifications: true,
+      profileVisibility: true,
+    },
   },
 }
 
@@ -39,16 +106,37 @@ export const mockActivities = [
   {
     id: "activity1",
     userId: "user1",
-    type: "mission_created",
-    message: "New mission created: Summer Campaign",
-    timestamp: new Date(),
+    action: "mission_created",
+    details: "New mission created: Summer Campaign",
+    timestamp: { seconds: Date.now() / 1000 },
   },
   {
     id: "activity2",
     userId: "user2",
-    type: "mission_completed",
-    message: "Mission completed: Product Review",
-    timestamp: new Date(Date.now() - 3600000), // 1 hour ago
+    action: "mission_completed",
+    details: "Mission completed: Product Review",
+    timestamp: { seconds: (Date.now() - 3600000) / 1000 }, // 1 hour ago
+  },
+  {
+    id: "activity3",
+    userId: "user1",
+    action: "profile_update",
+    details: "Profile information updated",
+    timestamp: { seconds: (Date.now() - 7200000) / 1000 }, // 2 hours ago
+  },
+  {
+    id: "activity4",
+    userId: "user1",
+    action: "login",
+    details: "Logged in from new device",
+    timestamp: { seconds: (Date.now() - 86400000) / 1000 }, // 1 day ago
+  },
+  {
+    id: "activity5",
+    userId: "user1",
+    action: "payment_sent",
+    details: "Payment of $500 sent for Summer Campaign",
+    timestamp: { seconds: (Date.now() - 172800000) / 1000 }, // 2 days ago
   },
 ]
 
@@ -57,17 +145,46 @@ export const mockNotifications = [
   {
     id: "notification1",
     userId: "user1",
-    type: "mission_update",
-    message: "Your mission 'Summer Campaign' has been updated.",
-    timestamp: new Date(),
+    type: "account",
+    title: "Profile Update",
+    message: "Your profile has been successfully updated.",
+    time: new Date().toISOString(),
     read: false,
   },
   {
     id: "notification2",
     userId: "user2",
     type: "payment_received",
+    title: "Payment Received",
     message: "You have received a payment of $500 for 'Product Review'.",
-    timestamp: new Date(Date.now() - 7200000), // 2 hours ago
+    time: new Date(Date.now() - 7200000).toISOString(), // 2 hours ago
+    read: true,
+  },
+  {
+    id: "notification3",
+    userId: "user1",
+    type: "security",
+    title: "New Login",
+    message: "New login detected from San Francisco, CA.",
+    time: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+    read: true,
+  },
+  {
+    id: "notification4",
+    userId: "user1",
+    type: "system",
+    title: "System Maintenance",
+    message: "The system will be undergoing maintenance on Saturday.",
+    time: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
+    read: false,
+  },
+  {
+    id: "notification5",
+    userId: "user1",
+    type: "account",
+    title: "Password Changed",
+    message: "Your password was recently changed.",
+    time: new Date(Date.now() - 259200000).toISOString(), // 3 days ago
     read: true,
   },
 ]

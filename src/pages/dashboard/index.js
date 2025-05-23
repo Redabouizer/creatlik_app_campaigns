@@ -6,3 +6,4 @@ export * from "@/pages/dashboard/creators";
 export * from "@/pages/dashboard/messages";
 export * from "@/pages/dashboard/missions";
 export * from "@/pages/dashboard/payments";
+export * from "@/pages/dashboard/settings";

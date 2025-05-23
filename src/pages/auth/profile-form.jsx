@@ -5,8 +5,7 @@ import { useNavigate } from "react-router-dom"
 import Swal from "sweetalert2"
 import withReactContent from "sweetalert2-react-content"
 import { Input, Button, Typography, Card, CardBody, CardFooter } from "@material-tailwind/react"
-import { updateUserProfile } from "../../firebase/auth"
-import { getUserData } from "../../services/firebase-service"
+import { getUserData, saveUserData } from "../../services/firebase-service"
 import { auth } from "../../firebase/config"
 
 export default function ProfileForm({ isNewUser = false, onComplete }) {
@@ -81,14 +80,19 @@ export default function ProfileForm({ isNewUser = false, onComplete }) {
       }
 
       // Update the user profile in Firestore
-      const { success, error } = await updateUserProfile(user.uid, {
+      const updatedData = {
         firstName: userData.firstName,
         lastName: userData.lastName,
         phoneNumber: userData.phoneNumber,
         address: userData.address,
         location: userData.location,
         displayName: `${userData.firstName} ${userData.lastName}`,
-      })
+        userType: "brand", // Ensure userType is set to brand
+        profileComplete: true,
+        updatedAt: new Date(),
+      }
+
+      const { success, error } = await saveUserData(user.uid, updatedData)
 
       if (!success) {
         throw error || new Error("Failed to update profile")

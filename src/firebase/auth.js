@@ -14,6 +14,7 @@ import {
   getUserByEmail,
   saveVerificationCode,
   verifyCode,
+  createNewUser,
 } from "../services/firebase-service"
 
 // Track login attempts for rate limiting
@@ -29,8 +30,9 @@ const googleProvider = new GoogleAuthProvider()
  * @param {string} password - User's password
  * @returns {Promise<object>} - Result with user or error
  */
-export const registerWithEmailAndPassword = async (name, email, password) => {
+export const registerWithEmailAndPassword = async (name, email, password, additionalData = {}) => {
   try {
+    console.log("Registering user with email and password:", email)
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     const user = userCredential.user
 
@@ -44,22 +46,24 @@ export const registerWithEmailAndPassword = async (name, email, password) => {
     const firstName = nameParts[0] || ""
     const lastName = nameParts.slice(1).join(" ") || ""
 
-    // Save initial user data to Firestore
-    await saveUserData(user.uid, {
-      uid: user.uid,
-      email: user.email,
+    // Create new user with brand user type
+    const userData = {
       displayName: name,
       firstName,
       lastName,
-      phoneNumber: "",
-      address: "",
-      location: "",
-      profileComplete: false,
-      authProvider: "email",
-    })
+      userType: "brand", // Force userType to be brand
+      companyName: additionalData.companyName || name,
+      industry: additionalData.industry || "other",
+      websiteUrl: additionalData.websiteUrl || "",
+      ...additionalData,
+    }
+
+    console.log("Creating new user with data:", userData)
+    await createNewUser(user, userData)
 
     return { user, isNewUser: true }
   } catch (error) {
+    console.error("Registration error:", error)
     return { error }
   }
 }
@@ -72,6 +76,7 @@ export const registerWithEmailAndPassword = async (name, email, password) => {
  */
 export const loginWithEmailAndPassword = async (email, password) => {
   try {
+    console.log("Logging in with email and password:", email)
     // Implement basic rate limiting
     const userIP = "client-ip" // In a real app, you'd get this from the request
     const key = `${email}:${userIP}`
@@ -108,6 +113,35 @@ export const loginWithEmailAndPassword = async (email, password) => {
     const userCredential = await signInWithEmailAndPassword(auth, email, password)
     const user = userCredential.user
 
+    // Get user data from Firestore to check role
+    const { success, data: userData } = await getUserData(user.uid)
+
+    if (!success || !userData) {
+      console.log("User data not found in Firestore, creating new user data")
+      // If user data not found, create it with brand role
+      await createNewUser(user, {
+        userType: "brand",
+        verificationStatus: true,
+      })
+
+      // Fetch the newly created user data
+      const { data: newUserData } = await getUserData(user.uid)
+      if (newUserData) {
+        const userData = newUserData
+      } else {
+        // If still no user data, use default brand data
+        const userData = { userType: "brand", verificationStatus: true }
+      }
+    } else if (userData.userType !== "brand") {
+      console.log("User exists but is not a brand, updating to brand type")
+      // If user exists but is not a brand, update to brand
+      await saveUserData(user.uid, {
+        userType: "brand",
+        updatedAt: new Date(),
+      })
+      userData.userType = "brand"
+    }
+
     // Reset attempts on successful login
     if (loginAttempts[key]) {
       loginAttempts[key].count = 0
@@ -120,21 +154,41 @@ export const loginWithEmailAndPassword = async (email, password) => {
     const token = await user.getIdToken()
 
     // Store auth data securely
-    // Use sessionStorage instead of localStorage for better security
     sessionStorage.setItem("token", token)
     sessionStorage.setItem("authTime", Date.now().toString())
 
-    // Store minimal user data
-    const userData = {
+    // Store complete user data
+    const sessionUserData = {
       uid: user.uid,
       email: user.email,
       displayName: user.displayName,
+      userType: userData.userType || "brand",
+      companyName: userData.companyName,
+      industry: userData.industry,
+      profileComplete: userData.profileComplete || false,
     }
-    sessionStorage.setItem("userData", JSON.stringify(userData))
+    sessionStorage.setItem("userData", JSON.stringify(sessionUserData))
 
-    return { user, isNewUser: !profileComplete }
+    return {
+      user,
+      isNewUser: !profileComplete,
+      userType: userData.userType || "brand",
+    }
   } catch (error) {
-    return { error }
+    console.error("Login error:", error)
+
+    // Format the error response properly
+    if (error.code && error.message) {
+      return { error }
+    }
+
+    // For Firebase errors that don't have proper code/message
+    return {
+      error: {
+        code: error.code || "auth/login-failed",
+        message: error.message || "Login failed. Please try again.",
+      },
+    }
   }
 }
 
@@ -144,35 +198,32 @@ export const loginWithEmailAndPassword = async (email, password) => {
  */
 export const signInWithGoogle = async () => {
   try {
+    console.log("Signing in with Google")
     const result = await signInWithPopup(auth, googleProvider)
     const user = result.user
 
     // Check if user exists in Firestore
-    const { success, data } = await getUserData(user.uid)
-    const isNewUser = !success || !data
+    const { success, data: userData } = await getUserData(user.uid)
+    const isNewUser = !success || !userData
 
     if (isNewUser) {
-      // This is a new user, save initial data
-      const nameParts = user.displayName ? user.displayName.split(" ") : ["", ""]
-      const firstName = nameParts[0] || ""
-      const lastName = nameParts.slice(1).join(" ") || ""
-
-      await saveUserData(user.uid, {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName || "",
-        photoURL: user.photoURL || "",
-        firstName,
-        lastName,
-        phoneNumber: user.phoneNumber || "",
-        address: "",
-        location: "",
-        profileComplete: false,
-        authProvider: "google",
+      console.log("New Google user, creating user data in Firestore")
+      // This is a new user, create with brand role
+      await createNewUser(user, {
+        userType: "brand", // Force brand role
+        verificationStatus: true, // Set to true by default for easier testing
+        companyName: user.displayName || "New Brand",
+        industry: "other",
+        websiteUrl: "",
       })
-    } else if (!data.profileComplete) {
-      // User exists but profile is not complete
-      return { user, isNewUser: true }
+    } else if (userData.userType !== "brand") {
+      console.log("Google user exists but is not a brand, updating to brand type")
+      // If user exists but is not a brand, update to brand
+      await saveUserData(user.uid, {
+        userType: "brand",
+        verificationStatus: true,
+        updatedAt: new Date(),
+      })
     }
 
     // Get the token and store it securely
@@ -182,18 +233,42 @@ export const signInWithGoogle = async () => {
     sessionStorage.setItem("token", token)
     sessionStorage.setItem("authTime", Date.now().toString())
 
-    // Store minimal user data
-    const userData = {
+    // Get updated user data (especially important for new users)
+    const { data: updatedUserData } = await getUserData(user.uid)
+
+    // Store complete user data
+    const sessionUserData = {
       uid: user.uid,
       email: user.email,
-      displayName: user.displayName,
-      photoURL: user.photoURL,
+      displayName: updatedUserData?.displayName || user.displayName,
+      photoURL: updatedUserData?.photoURL || user.photoURL,
+      userType: "brand", // Ensured to be brand
+      companyName: updatedUserData?.companyName,
+      industry: updatedUserData?.industry,
+      profileComplete: updatedUserData?.profileComplete || false,
     }
-    sessionStorage.setItem("userData", JSON.stringify(userData))
+    sessionStorage.setItem("userData", JSON.stringify(sessionUserData))
 
-    return { user, isNewUser }
+    return {
+      user,
+      isNewUser,
+      userType: "brand",
+    }
   } catch (error) {
-    return { error }
+    console.error("Google sign-in error:", error)
+
+    // Format the error response properly
+    if (error.code && error.message) {
+      return { error }
+    }
+
+    // For Firebase errors that don't have proper code/message
+    return {
+      error: {
+        code: error.code || "auth/google-signin-failed",
+        message: error.message || "Google sign-in failed. Please try again.",
+      },
+    }
   }
 }
 

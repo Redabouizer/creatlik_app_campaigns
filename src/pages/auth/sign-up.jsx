@@ -8,6 +8,7 @@ import { Input, Checkbox, Button, Typography } from "@material-tailwind/react"
 import { registerWithEmailAndPassword, signInWithGoogle, checkPasswordStrength } from "../../firebase/auth"
 import { auth } from "../../firebase/config"
 import { onAuthStateChanged } from "firebase/auth"
+import { saveUserData } from "../../services/firebase-service"
 
 export function SignUp() {
   const navigate = useNavigate()
@@ -27,12 +28,15 @@ export function SignUp() {
     return () => unsubscribe()
   }, [navigate])
 
-  const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     password_confirmation: "",
-  })
+    companyName: "",
+    industry: "",
+    websiteUrl: ""
+  });
 
   const [formErrors, setFormErrors] = useState({
     name: "",
@@ -158,44 +162,44 @@ export function SignUp() {
   }
 
   // Optimized registration handler
-  const registerHandler = useCallback(
-    async (e) => {
-      e.preventDefault()
-      setIsSubmitting(true)
+const registerHandler = useCallback(
+  async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
 
-      if (!validateForm()) {
-        setIsSubmitting(false)
-        return
+    if (!validateForm()) {
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      const { user, error } = await registerWithEmailAndPassword(
+        formData.name,
+        formData.email,
+        formData.password
+      );
+
+      if (error) throw error;
+
+      // Save additional brand info
+      if (user) {
+        await saveUserData(user.uid, {
+          companyName: formData.companyName || formData.name,
+          industry: formData.industry || "other",
+          websiteUrl: formData.websiteUrl || ""
+        });
+
+        await MySwal.fire({
+          title: "Success!",
+          text: "Brand account created successfully",
+          icon: "success",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+
+        navigate("/complete-profile", { replace: true });
       }
-
-      try {
-        const { user, error, isNewUser } = await registerWithEmailAndPassword(
-          formData.name,
-          formData.email,
-          formData.password,
-        )
-
-        if (error) {
-          throw error
-        }
-
-        if (user) {
-          await MySwal.fire({
-            title: "Success!",
-            text: "Registered successfully",
-            icon: "success",
-            timer: 1500,
-            showConfirmButton: false,
-          })
-
-          // Redirect to profile completion page for new users
-          if (isNewUser) {
-            navigate("/complete-profile", { replace: true })
-          } else {
-            navigate("/auth/sign-in", { replace: true })
-          }
-        }
-      } catch (error) {
+    } catch (error) {
         let errorMessage = "Registration failed. Please try again."
 
         if (error.code === "auth/email-already-in-use") {
@@ -211,12 +215,12 @@ export function SignUp() {
           text: errorMessage,
           icon: "error",
         })
-      } finally {
-        setIsSubmitting(false)
-      }
-    },
-    [formData, validateForm, navigate, MySwal],
-  )
+       } finally {
+      setIsSubmitting(false);
+    }
+  },
+  [formData, validateForm, navigate, MySwal]
+);
 
   return (
     <section className="m-8 flex">
@@ -324,6 +328,57 @@ export function SignUp() {
               </Typography>
             )}
           </div>
+
+          <>
+            {/* Company Name */}
+            <Typography variant="small" color="blue-gray" className="-mb-3 font-medium">
+              Company Name
+            </Typography>
+            <Input
+              name="companyName"
+              size="lg"
+              placeholder="Your Company"
+              className="!border-t-blue-gray-200 focus:!border-t-gray-900"
+              labelProps={{ className: "before:content-none after:content-none" }}
+              value={formData.companyName}
+              onChange={handleInputChange}
+              required
+            />
+
+            {/* Industry */}
+            <Typography variant="small" color="blue-gray" className="-mb-3 font-medium">
+              Industry
+            </Typography>
+            <select
+              name="industry"
+              value={formData.industry}
+              onChange={handleInputChange}
+              className="border border-gray-300 rounded-lg p-2 focus:border-gray-900"
+              required
+            >
+              <option value="">Select Industry</option>
+              <option value="fashion">Fashion</option>
+              <option value="beauty">Beauty</option>
+              <option value="tech">Tech</option>
+              <option value="food">Food</option>
+              <option value="other">Other</option>
+            </select>
+
+            {/* Website URL */}
+            <Typography variant="small" color="blue-gray" className="-mb-3 font-medium">
+              Website URL
+            </Typography>
+            <Input
+              name="websiteUrl"
+              type="url"
+              size="lg"
+              placeholder="https://yourcompany.com"
+              className="!border-t-blue-gray-200 focus:!border-t-gray-900"
+              labelProps={{ className: "before:content-none after:content-none" }}
+              value={formData.websiteUrl}
+              onChange={handleInputChange}
+            />
+          </>
 
           {/* Terms Checkbox */}
           <Checkbox
