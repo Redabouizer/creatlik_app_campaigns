@@ -1,62 +1,45 @@
-name: Build and Deploy
+name: Deploy React App
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: 18
-    
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Build application
-      run: npm run build
-      
-    - name: Run tests
-      run: npm test
-      
-    - name: Build Docker image
-      run: docker build -t crealik-app .
-      
-    - name: Log in to Docker Hub
-      if: github.ref == 'refs/heads/main'
-      uses: docker/login-action@v2
-      with:
-        username: ${{ secrets.DOCKER_HUB_USERNAME }}
-        password: ${{ secrets.DOCKER_HUB_TOKEN }}
-        
-    - name: Push to Docker Hub
-      if: github.ref == 'refs/heads/main'
-      run: |
-        docker tag crealik-app ${{ secrets.DOCKER_HUB_USERNAME }}/crealik-app:latest
-        docker push ${{ secrets.DOCKER_HUB_USERNAME }}/crealik-app:latest
-        
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-    - name: SSH and deploy
-      uses: appleboy/ssh-action@master
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USERNAME }}
-        key: ${{ secrets.SSH_KEY }}
-        script: |
-          docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/crealik-app:latest
-          docker stop crealik-app || true
-          docker rm crealik-app || true
-          docker run -d -p 3000:80 --name crealik-app ${{ secrets.DOCKER_HUB_USERNAME }}/crealik-app:latest
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: your-dockerhub-username
+          password: your-dockerhub-token
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: your-dockerhub-username/crealik-app:latest
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: your.server.com
+          username: your-user
+          key: |
+            -----BEGIN OPENSSH PRIVATE KEY-----
+            YOUR_PRIVATE_KEY_CONTENT_HERE
+            -----END OPENSSH PRIVATE KEY-----
+          script: |
+            docker pull your-dockerhub-username/crealik-app:latest
+            docker stop crealik-app || true
+            docker rm crealik-app || true
+            docker run -d -p 5173:5173 --name crealik-app your-dockerhub-username/crealik-app:latest
